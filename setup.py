@@ -7,6 +7,7 @@ setup(
     author_email='zceemja@ucl.ac.uk',
     packages=find_packages(),
     test_suite='tests',
+    license_files=('LICENSE',),
     classifiers=[
         "Programming Language :: Python :: 3",
         "License :: OSI Approved :: MIT License",
