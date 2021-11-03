@@ -2,8 +2,9 @@ from setuptools import setup, find_packages
 
 setup(
     name='sibase',
-    version='0.1.2',
+    version='0.1.3',
     description='A basic python package that converts numerical strings with units to base units',
+    author='Mindaugas Jarmolovičius',
     author_email='zceemja@ucl.ac.uk',
     packages=find_packages(),
     test_suite='tests',

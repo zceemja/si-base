@@ -28,10 +28,10 @@ _si_prefix = {
 }
 
 _special_units = {
-
+    'dB': None
 }
 
-_si_unit_re = re.compile(r'^(-?[0-9]+(\.[0-9]+)?(e-?[0-9]+)?)([/^.* \w]+)$')
+_si_unit_re = re.compile(r'^(-?[0-9]+(\.[0-9]+)?(e-?[0-9]+)?)([/^.* \-\w]+)$')
 _si_prefix_re = re.compile(rf'([ /*]?)([{"".join(_si_prefix.keys())}]?)([^\^/* ]*)(\^[\-]?[0-9]+(\.[0-9]+)?)?')
 
 
@@ -69,7 +69,8 @@ class Unit:
                 if power_str != '':
                     raise ValueError(f'Power for special unit {unit_group + power_str} is not supported')
                 func = _special_units[unit_group]
-                self.modifiers.append(func if divider == '/' else lambda x: 1 / func(x))
+                if func is not None:
+                    self.modifiers.append(func if divider == '/' else lambda x: 1 / func(x))
                 continue
             if unit == '':
                 unit = prefix
@@ -116,6 +117,30 @@ class Unit:
                 result += ('^%f' % abs(power)).rstrip('0').rstrip('.')
         return result
 
+    def _add(self, other, subtract=False):
+        """ Merge add from other unit object """
+        new_inst = Unit('')
+        if isinstance(other, str):
+            other = Unit(other)
+        for unit in self.units.keys() - other.units.keys():
+            new_inst.units[unit] = self.units[unit]
+        for unit in other.units.keys() - self.units.keys():
+            new_inst.units[unit] = -other.units[unit] if subtract else other.units[unit]
+        for unit in self.units.keys() & other.units.keys():
+            new_inst.units[unit] = self.units[unit]
+            if unit not in other.units:
+                continue
+            new_inst.units[unit] += -other.units[unit] if subtract else other.units[unit]
+            if new_inst.units[unit] == 0:
+                del new_inst.units[unit]
+        # Sort by power then by alphabet of unit name
+        new_inst.units = OrderedDict(sorted(new_inst.units.items(), key=lambda x: (-x[1], x[0])))
+        return new_inst
+
+    def _sub(self, other):
+        """ Merge subtract from other unit object """
+        return self._add(other, subtract=True)
+
 
 class Value(float):
     def __new__(cls, value, units=''):
@@ -124,12 +149,13 @@ class Value(float):
             value = float(value_str)
             if units == '':
                 units = _units
-        units_obj = Unit(units)
-        for mod in units_obj.modifiers:
+        if not isinstance(units, Unit):
+            units = Unit(units)
+        for mod in units.modifiers:
             value = mod(value)
-        _value = value * 10 ** units_obj.scale
+        _value = value * 10 ** units.scale
         instance = super().__new__(cls, _value)
-        instance.__units__ = units_obj
+        instance.__units__ = units
         return instance
 
     @property
@@ -154,8 +180,67 @@ class Value(float):
 
     def __repr__(self):
         spl = '{:e}'.format(self).split('e')
+        exp = 'e' + spl[1]
+        if abs(int(spl[1][-2:])) <= 3:
+            spl[0] = '{:.6f}'.format(self)
+            exp = ''
         val = spl[0].rstrip('0').rstrip('.')
-        if spl[1][-2:] != '00':
-            val += 'e' + spl[1]
-        return f'{val} {self.__units__}'
+        return f'{val}{exp} {self.__units__}'
 
+    def __eq__(self, x):
+        if isinstance(x, str):
+            x = Value(x)
+        return super().__eq__(x)
+
+    def __ne__(self, x):
+        if isinstance(x, str):
+            x = Value(x)
+        return super().__ne__(x)
+
+    def __gt__(self, x):
+        if isinstance(x, str):
+            x = Value(x)
+        return super().__gt__(x)
+
+    def __lt__(self, x):
+        if isinstance(x, str):
+            x = Value(x)
+        return super().__lt__(x)
+
+    def __ge__(self, x):
+        if isinstance(x, str):
+            x = Value(x)
+        return super().__ge__(x)
+
+    def __le__(self, x):
+        if isinstance(x, str):
+            x = Value(x)
+        return super().__le__(x)
+
+    def __sub__(self, x):
+        if isinstance(x, str):
+            x = Value(x)
+        return Value(super().__sub__(x), self.units)
+
+    def __add__(self, x):
+        if isinstance(x, str):
+            x = Value(x)
+        return Value(super().__add__(x), self.units)
+
+    def __mul__(self, x):
+        if isinstance(x, str):
+            x = Value(x)
+            return Value(super().__mul__(x), self.__units__._add(x.__units__))
+        return super().__mul__(x)
+
+    def __truediv__(self, x):
+        if isinstance(x, str):
+            x = Value(x)
+            return Value(super().__truediv__(x), self.__units__._sub(x.__units__))
+        return super().__truediv__(x)
+
+    def __floordiv__(self, x):
+        if isinstance(x, str):
+            x = Value(x)
+            return Value(super().__floordiv__(x), self.__units__._sub(x.__units__))
+        return super().__floordiv__(x)

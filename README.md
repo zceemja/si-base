@@ -18,6 +18,18 @@ float_value = Unit('km/s').convert(3e8)
 # shorthand methods:
 float_value = 3e8 @ Unit('km/s')
 float_value = Unit('km/s') @ 3e8
+
+# Operations
+# Note that this only compares numerical values, not units
+Value('50 km') > '1e6 mm'  # True
+Value('50 km') < '1e8 mm'  # True
+Value('50 /km') == '50 km^-1'  # True
+
+Value('50 km') + '50 km'  # 1e5 m (returns Value object, keeps units from LHS)
+Value('50 km') - '1e4 m'  # 4e4 m (returns Value object, keeps units from LHS)
+Value('50 km') * '100 m'  # 5e6 m^2 (returns Value object, unit updated)
+Value('1 km') / '50 m'  # 20 (returns Value object, this case unitless)
+Value('1 km') / '50 s'  # 20 m/s (returns Value object, units updated)
 ```
 
 Supports converting units with powers such as:
@@ -27,6 +39,10 @@ from sibase import Value
 
 Value('-21 ps^2/km')  #  -2.1e-26 s^2/m
 Value('17 ps/nm/km')  #  1.7e-05 s/m^2
+
+# decibels are treated as special unit for now, probably will be changed in future
+Value('0.2 dB/km')  # 2e-4 /m 
+
 ```
 
 Numpy, probably could also applied for other libraries
