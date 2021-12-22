@@ -31,7 +31,7 @@ _special_units = {
     'dB': None
 }
 
-_si_unit_re = re.compile(r'^(-?[0-9]+(\.[0-9]+)?(e-?[0-9]+)?)([/^.* \-\w]+)$')
+_si_unit_re = re.compile(r'^(-?[0-9]+(\.[0-9]+)?(e[-+]?[0-9]+)?)([/^.* \-\w]+)$')
 _si_prefix_re = re.compile(rf'([ /*]?)([{"".join(_si_prefix.keys())}]?)([^\^/* ]*)(\^[\-]?[0-9]+(\.[0-9]+)?)?')
 
 
