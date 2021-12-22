@@ -57,11 +57,22 @@ def to_base(value, units=''):
     return value * 10 ** m.scale
 
 
+def float_repr(value: float) -> str:
+    """ Pretty print float """
+    spl = '{:e}'.format(value).split('e')
+    exp = 'e' + spl[1]
+    if abs(int(spl[1][-2:])) <= 3:
+        spl[0] = '{:.8f}'.format(value)
+        exp = ''
+    return spl[0].rstrip('0').rstrip('.') + exp
+
+
 class Unit:
     def __init__(self, string):
         self.units = OrderedDict()
         self.scale = 0
         self.modifiers = []
+        self.original = string
 
         for divider, prefix, unit, power_str, _ in _si_prefix_re.findall(string)[:-1]:
             unit_group = prefix + unit
@@ -169,6 +180,13 @@ class Value(float):
         """
         return self.to(unit)
 
+    def __invert__(self):
+        """
+        returns value with original units that it as initialised with
+        """
+        value = Unit(self.__units__.original).convert(self)
+        return f'{float_repr(value)} {self.__units__.original}'
+
     def to(self, unit):
         """
         Converts SI unit to provided units,
@@ -177,15 +195,10 @@ class Value(float):
         :return: value as a float
         """
         return Unit(unit).convert(self)
-
+    
     def __repr__(self):
-        spl = '{:e}'.format(self).split('e')
-        exp = 'e' + spl[1]
-        if abs(int(spl[1][-2:])) <= 3:
-            spl[0] = '{:.6f}'.format(self)
-            exp = ''
-        val = spl[0].rstrip('0').rstrip('.')
-        return f'{val}{exp} {self.__units__}'
+        val = float_repr(self)
+        return f'{val} {self.__units__}'
 
     def __eq__(self, x):
         if isinstance(x, str):
