@@ -1,7 +1,6 @@
 import re
 from collections import OrderedDict
 
-
 _si_prefix = {
     'Y': 24,
     'Z': 21,
@@ -32,7 +31,31 @@ _special_units = {
 }
 
 _si_unit_re = re.compile(r'^(-?[0-9]+(\.[0-9]+)?(e[-+]?[0-9]+)?)([/^.* \-\w]+)$')
-_si_prefix_re = re.compile(rf'([ /*]?)([{"".join(_si_prefix.keys())}]?)([^\^/* ]*)(\^[\-]?[0-9]+(\.[0-9]+)?)?')
+_si_prefix_re = re.compile(rf'([ /*]?)([{"".join(_si_prefix.keys())}]?)([^\^/*⁰¹²³⁴⁵⁶⁷⁸⁹⁺⁻ ]*)' +
+                           r'(\^[\-]?[0-9]+(\.[0-9]+)?|[⁺⁻]?[⁰¹²³⁴⁵⁶⁷⁸⁹]+)?')
+
+_superscripts = "⁰¹²³⁴⁵⁶⁷⁸⁹⁺⁻"
+_superscripts_re = re.compile(r'^[⁺⁻]?[⁰¹²³⁴⁵⁶⁷⁸⁹]+$')
+
+
+def _num_to_superscript(value: int) -> str:
+    try:
+        digits = ''.join([_superscripts[int(digit)] for digit in str(value).lstrip('-')])
+        if value < 0:
+            digits = _superscripts[-1] + digits
+        return digits
+    except ValueError:
+        return str(value).rstrip('0').rstrip('.')
+
+
+def _superscript_to_num(value: str) -> float:
+    if _superscripts_re.match(value) is not None:
+        digits = ''.join([str(_superscripts.find(digit)) for digit in value.lstrip(_superscripts[-2:])])
+        if value.startswith(_superscripts[-1]):
+            digits = "-" + digits
+        return float(digits)
+    else:
+        return float(value)
 
 
 def _parse_number(string):
@@ -68,6 +91,8 @@ def float_repr(value: float) -> str:
 
 
 class Unit:
+    PRINT_SUBSCRIPTS = True
+
     def __init__(self, string):
         self.units = OrderedDict()
         self.scale = 0
@@ -86,7 +111,8 @@ class Unit:
             if unit == '':
                 unit = prefix
                 prefix = ''
-            power = float(power_str[1:]) if len(power_str) > 1 else 1
+            power_str = power_str.lstrip('^')
+            power = _superscript_to_num(power_str) if len(power_str) > 0 else 1
             if divider == '/':
                 power = -power
             self.scale += _si_prefix[prefix] * power
@@ -121,11 +147,16 @@ class Unit:
     def __repr__(self):
         result = ''
         for unit, power in self.units.items():
-            if power < 0:
-                result += '/'
-            result += unit
-            if abs(power) > 1:
-                result += ('^%f' % abs(power)).rstrip('0').rstrip('.')
+            if self.PRINT_SUBSCRIPTS and float(power).is_integer():
+                result += unit
+                if power != 1:
+                    result += _num_to_superscript(int(power))
+            else:
+                if power < 0:
+                    result += '/'
+                result += unit
+                if abs(power) > 1:
+                    result += ('^%f' % abs(power)).rstrip('0').rstrip('.')
         return result
 
     def _add(self, other, subtract=False):
@@ -195,7 +226,7 @@ class Value(float):
         :return: value as a float
         """
         return Unit(unit).convert(self)
-    
+
     def __repr__(self):
         val = float_repr(self)
         return f'{val} {self.__units__}'
