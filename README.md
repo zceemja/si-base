@@ -30,6 +30,9 @@ Value('50 km') - '1e4 m'  # 4e4 m (returns Value object, keeps units from LHS)
 Value('50 km') * '100 m'  # 5e6 m^2 (returns Value object, unit updated)
 Value('1 km') / '50 m'  # 20 (returns Value object, this case unitless)
 Value('1 km') / '50 s'  # 20 m/s (returns Value object, units updated)
+
+# Invert operation returns string with original units
+~(Value('50 km') + '50km')  # 100 km
 ```
 
 Supports converting units with powers such as:
