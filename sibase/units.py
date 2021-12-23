@@ -91,7 +91,7 @@ def float_repr(value: float) -> str:
 
 
 class Unit:
-    PRINT_SUBSCRIPTS = True
+    USE_SUBSCRIPTS = True
 
     def __init__(self, string):
         self.units = OrderedDict()
@@ -161,7 +161,7 @@ class Unit:
 
     def str(self, original=False, superscript=None):
         if superscript is None:
-            superscript = self.PRINT_SUBSCRIPTS
+            superscript = self.USE_SUBSCRIPTS
         result = ''
         for unit, power in self.units.items():
             if original and unit in self.original:
@@ -224,12 +224,15 @@ class Value(float):
         """
         return self.to(unit)
 
-    def __invert__(self):
+    def original(self, superscript=None):
         """
         returns value with original units that it as initialised with
         """
         value = self.__units__.convert(self)
-        return f'{float_repr(value)} {self.__units__.str(original=True)}'
+        return f'{float_repr(value)} {self.__units__.str(original=True, superscript=superscript)}'
+
+    def __invert__(self):
+        return self.original()
 
     def to(self, unit):
         """

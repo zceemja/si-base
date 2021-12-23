@@ -32,7 +32,16 @@ Value('1 km') / '50 m'  # 20 (returns Value object, this case unitless)
 Value('1 km') / '50 s'  # 20 m/s (returns Value object, units updated)
 
 # Invert operation returns string with original units
-~(Value('50 km') + '50km')  # 100 km
+~Value('50 km')  # 50 km
+Value('50 km').original()  # 50 km
+```
+
+Superscripts are enabled by default
+
+```python
+from sibase import Value, Unit
+Unit.USE_SUBSCRIPTS = False  # Disable superscripts for units
+Value('300mm^2/ps')  # 3e+08 m²s⁻¹
 ```
 
 Supports converting units with powers such as:
