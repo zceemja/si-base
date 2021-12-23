@@ -31,8 +31,12 @@ _special_units = {
 }
 
 _si_unit_re = re.compile(r'^(-?[0-9]+(\.[0-9]+)?(e[-+]?[0-9]+)?)([/^.* \-\w]+)?$')
-_si_prefix_re = re.compile(rf'([ /*]?)([{"".join(_si_prefix.keys())}]?)([^\^/*⁰¹²³⁴⁵⁶⁷⁸⁹⁺⁻ ]*)' +
-                           r'(\^[\-]?[0-9]+(\.[0-9]+)?|[⁺⁻]?[⁰¹²³⁴⁵⁶⁷⁸⁹]+)?')
+_si_prefix_re = re.compile(
+    r'([ /*∙]?)' +                                      # divider
+    rf'([{"".join(_si_prefix.keys())}]?)' +             # prefix
+    r'([^\^/*⁰¹²³⁴⁵⁶⁷⁸⁹⁺⁻ ]*)' +                        # unit
+    r'(\^[\-]?[0-9]+(\.[0-9]+)?|[⁺⁻]?[⁰¹²³⁴⁵⁶⁷⁸⁹]+)?'   # power_str
+)
 
 _superscripts = "⁰¹²³⁴⁵⁶⁷⁸⁹⁺⁻"
 _superscripts_re = re.compile(r'^[⁺⁻]?[⁰¹²³⁴⁵⁶⁷⁸⁹]+$')
@@ -92,6 +96,7 @@ def float_repr(value: float) -> str:
 
 class Unit:
     USE_SUBSCRIPTS = True
+    USE_DOT_OPERATOR = False
 
     def __init__(self, string):
         self.units = OrderedDict()
@@ -159,15 +164,19 @@ class Unit:
                 result += ('^%f' % abs(power)).rstrip('0').rstrip('.')
         return result
 
-    def str(self, original=False, superscript=None):
+    def str(self, original=False, superscript=None, dot_operator=None):
         if superscript is None:
             superscript = self.USE_SUBSCRIPTS
-        result = ''
+        if dot_operator is None:
+            dot_operator = self.USE_DOT_OPERATOR
+        result = []
         for unit, power in self.units.items():
             if original and unit in self.original:
                 unit = self.original[unit] + unit
-            result += self._repr_unit(unit, power, superscript)
-        return result
+            result.append(self._repr_unit(unit, power, superscript))
+        if superscript and dot_operator:
+            return '∙'.join(result)
+        return ''.join(result)
 
     def __repr__(self):
         return self.str()
