@@ -97,7 +97,7 @@ class Unit:
         self.units = OrderedDict()
         self.scale = 0
         self.modifiers = []
-        self.original = string
+        self.original = {}
 
         for divider, prefix, unit, power_str, _ in _si_prefix_re.findall(string)[:-1]:
             unit_group = prefix + unit
@@ -120,6 +120,7 @@ class Unit:
                 self.units[unit] += power
             else:
                 self.units[unit] = power
+            self.original[unit] = prefix
 
     def convert(self, value):
         """
@@ -144,20 +145,32 @@ class Unit:
         """
         return self.convert(right)
 
-    def __repr__(self):
+    def _repr_unit(self, unit, power, superscript) -> str:
+        result = ''
+        if superscript and float(power).is_integer():
+            result += unit
+            if power != 1:
+                result += _num_to_superscript(int(power))
+        else:
+            if power < 0:
+                result += '/'
+            result += unit
+            if abs(power) > 1:
+                result += ('^%f' % abs(power)).rstrip('0').rstrip('.')
+        return result
+
+    def str(self, original=False, superscript=None):
+        if superscript is None:
+            superscript = self.PRINT_SUBSCRIPTS
         result = ''
         for unit, power in self.units.items():
-            if self.PRINT_SUBSCRIPTS and float(power).is_integer():
-                result += unit
-                if power != 1:
-                    result += _num_to_superscript(int(power))
-            else:
-                if power < 0:
-                    result += '/'
-                result += unit
-                if abs(power) > 1:
-                    result += ('^%f' % abs(power)).rstrip('0').rstrip('.')
+            if original and unit in self.original:
+                unit = self.original[unit] + unit
+            result += self._repr_unit(unit, power, superscript)
         return result
+
+    def __repr__(self):
+        return self.str()
 
     def _add(self, other, subtract=False):
         """ Merge add from other unit object """
@@ -215,8 +228,8 @@ class Value(float):
         """
         returns value with original units that it as initialised with
         """
-        value = Unit(self.__units__.original).convert(self)
-        return f'{float_repr(value)} {self.__units__.original}'
+        value = self.__units__.convert(self)
+        return f'{float_repr(value)} {self.__units__.str(original=True)}'
 
     def to(self, unit):
         """
