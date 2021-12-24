@@ -15,7 +15,7 @@ setup(
     author='Mindaugas Jarmolovičius',
     author_email='zceemja@ucl.ac.uk',
     packages=find_packages(),
-    test_suite='tests',
+    test_suite='tests.test',
     license_files=('LICENSE',),
     classifiers=[
         "Intended Audience :: Science/Research",

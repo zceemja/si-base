@@ -61,7 +61,7 @@ class TestConvert(unittest.TestCase):
         self.assertEqual(Value('50 km') - '1e4 m', 4e4)
         self.assertEqual(Value('50 km') * '100 m', 5e6)
         self.assertEqual((Value('50 km') * '100 m').units, 'm^2')
-        self.assertEqual((Value('50 km') * '100 s').units, 'ms')
+        self.assertEqual((Value('50 km') * '100 s').units, 'm s')
         self.assertEqual(Value('1 km') / '50 m', 20)
         self.assertEqual((Value('1 km') / '50 m').units, '')
         self.assertEqual(Value('1 km') / '50 s', 20)
@@ -72,7 +72,7 @@ class TestConvert(unittest.TestCase):
         Unit.USE_SUBSCRIPTS = False
         self.assertEqual(Value('50 km').original(), '50 km')
         self.assertEqual(Value('17 ps/nm/km').original(), '17 ps/nm/km')
-        self.assertEqual((Value('17 ps/nm/km') * '1 km').original(simplify=True), '17 ps/nm')
+        self.assertEqual((Value('17 ps/nm/km') * '1 km').original(simplify=True), '17e-08 ps/nm')
         self.assertEqual((Value('17 ps/nm/km') / '1 km').original(simplify=True), '17 ps/nm/km^2')
         self.assertEqual((Value('17 ps/nm/km') * '1 km').original(simplify=False), '17 ps/nm/km km')
         self.assertEqual((Value('17 ps/nm/km') / '1 km').original(simplify=False), '17e-08 ps/nm/km/km')
