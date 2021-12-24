@@ -30,7 +30,7 @@ _special_units = {
     'dB': None
 }
 
-_si_unit_re = re.compile(r'^(-?[0-9]+(\.[0-9]+)?(e[-+]?[0-9]+)?)([/^.* \-\w]+)?$')
+_si_unit_re = re.compile(r'^(-?[0-9]+(\.[0-9]+)?(e[-+]?[0-9]+)?)(.*)$')
 _si_prefix_re = re.compile(
     r'([ /*∙]?)' +                                      # divider
     rf'([{"".join(_si_prefix.keys())}]?)' +             # prefix
@@ -96,13 +96,13 @@ def float_repr(value: float) -> str:
 
 class Unit:
     USE_SUBSCRIPTS = True
-    USE_DOT_OPERATOR = False
+    USE_DOT_OPERATOR = True
 
     def __init__(self, string):
         self.units = OrderedDict()
         self.scale = 0
         self.modifiers = []
-        self.original = {}
+        self.original = []
 
         for divider, prefix, unit, power_str, _ in _si_prefix_re.findall(string)[:-1]:
             unit_group = prefix + unit
@@ -125,7 +125,7 @@ class Unit:
                 self.units[unit] += power
             else:
                 self.units[unit] = power
-            self.original[unit] = prefix
+            self.original.append((unit, prefix, power))
 
     def convert(self, value):
         """
@@ -164,19 +164,41 @@ class Unit:
                 result += ('^%f' % abs(power)).rstrip('0').rstrip('.')
         return result
 
-    def str(self, original=False, superscript=None, dot_operator=None):
+    def str(self, original=False, superscript=None, dot_operator=None, simplify=False):
+        """
+        Prints units as string
+        :param original: print units in initial form
+        :param superscript: print using superscripts
+        :param dot_operator: use dot for unit separation
+        :param simplify: marge units with same prefix
+        :return: unit string
+        """
         if superscript is None:
             superscript = self.USE_SUBSCRIPTS
         if dot_operator is None:
             dot_operator = self.USE_DOT_OPERATOR
         result = []
-        for unit, power in self.units.items():
-            if original and unit in self.original:
-                unit = self.original[unit] + unit
-            result.append(self._repr_unit(unit, power, superscript))
+        if original:
+            _original = self.original
+            if simplify:
+                concated = list(map(lambda x: (x[1] + x[0], x[2]), self.original))
+                used = set()
+                _original = []
+                for i, (unit, power) in enumerate(concated):
+                    if unit in used:
+                        continue
+                    power += sum([p for u, p in concated[i+1:] if unit == u])
+                    if power != 0:
+                        _original.append((unit, '', power))
+                    used.add(unit)
+            for unit, prefix, power in _original:
+                result.append(self._repr_unit(prefix + unit, power, superscript))
+        else:
+            for unit, power in self.units.items():
+                result.append(self._repr_unit(unit, power, superscript))
         if superscript and dot_operator:
             return '∙'.join(result)
-        return ''.join(result)
+        return ''.join([res if res.startswith('/') else ' ' + res for res in result]).strip()
 
     def __repr__(self):
         return self.str()
@@ -199,6 +221,10 @@ class Unit:
                 del new_inst.units[unit]
         # Sort by power then by alphabet of unit name
         new_inst.units = OrderedDict(sorted(new_inst.units.items(), key=lambda x: (-x[1], x[0])))
+        other_original = other.original
+        if subtract:
+            other_original = [(unit, prefix, -power) for unit, prefix, power in other_original]
+        new_inst.original = self.original + other_original
         return new_inst
 
     def _sub(self, other):
@@ -233,12 +259,12 @@ class Value(float):
         """
         return self.to(unit)
 
-    def original(self, superscript=None):
+    def original(self, **kwargs):
         """
         returns value with original units that it as initialised with
         """
         value = self.__units__.convert(self)
-        return f'{float_repr(value)} {self.__units__.str(original=True, superscript=superscript)}'
+        return f'{float_repr(value)} {self.__units__.str(original=True, **kwargs)}'
 
     def __invert__(self):
         return self.original()

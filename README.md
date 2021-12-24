@@ -34,6 +34,8 @@ Value('1 km') / '50 s'  # 20 m/s (returns Value object, units updated)
 # Invert operation returns string with original units
 ~Value('50 km')  # 50 km
 Value('50 km').original()  # 50 km
+# Reduces same unit and prefix values, useful for multiply/divide operations 
+Value('17 ps/nm/km/km').original(simplify=True)  # 17 ps/nm/km^2
 ```
 
 Superscripts are enabled by default
