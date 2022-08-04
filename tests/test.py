@@ -81,6 +81,25 @@ class TestConvert(unittest.TestCase):
         self.assertEqual(Value('50 km').original(True), '50 km')
         self.assertEqual(Value('17 ps/nm/km').original(True), '17 ps∙nm⁻¹∙km⁻¹')
 
+    def test_special_units(self):
+        Unit.USE_SUBSCRIPTS = False
+        Unit.USE_DOT_OPERATOR = False
+
+        v1 = Value('20dB')
+        # 20 dB ~= 2.3 Np
+        self.assertEqual(100, v1)
+        self.assertEqual('', v1.units)
+        self.assertEqual(2.302585092994046, v1 @ 'Np')
+
+        v2 = Value('20dB/km')
+        self.assertEqual(0.1, v2)
+        self.assertEqual('20 dB/km', v2.original())
+        self.assertEqual('/m', v2.units)
+        self.assertEqual(2.302585092994046, v2 @ 'Np/km')
+
+        self.assertEqual('2.3 Np', Value('2.3 Np').original())
+        self.assertEqual('2.3 /Np', Value('2.3 /Np').original())
+
 
 if __name__ == '__main__':
     unittest.main()

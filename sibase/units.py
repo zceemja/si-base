@@ -1,4 +1,6 @@
 import re
+import math
+import sys
 from collections import OrderedDict
 
 _si_prefix = {
@@ -26,16 +28,46 @@ _si_prefix = {
     'y': -24,
 }
 
+# (function to convert from, function to convert to)
+# _math will depend on class of x, it can be python's math module, numpy or jax.numpy
 _special_units = {
-    'dB': None
+    'dB': (
+        lambda x, _math: 10 ** (x / 10),
+        lambda x, _math: 10 * _math.log10(x),
+    ),
+    'dBm': (
+        lambda x, _math: 10 ** ((x - 30) / 10),
+        lambda x, _math: 10 * _math.log10(x) + 30,
+    ),
+    'Np': (  # Nepers
+        lambda x, _math: 10 ** (x / _math.log(10) * 2),
+        lambda x, _math: _math.log10(x) * _math.log(10) / 2,
+    )
 }
+
+_math_modules = {
+    'sibase.units': 'math',
+    'builtins': 'math',
+    'numpy': 'numpy',
+    'jaxlib.xla_extension': 'jax._src.numpy.ufuncs',
+}
+def _get_math(x):
+    """
+    Returns "math" module based on input argument class.
+    math class could be python's builtin math, numpy module, jax.numpy module.
+    """
+    if x.__class__.__module__ in _math_modules:
+        return sys.modules[_math_modules[x.__class__.__module__]]
+    raise ValueError(f'Value is unknown type {type(x)}. To add custom type add: '
+                     f'sibase._math_modules[{x.__class__.__module__}] = <name of math module to use>')
+
 
 _si_unit_re = re.compile(r'^(-?[0-9]+(\.[0-9]+)?(e[-+]?[0-9]+)?)(.*)$')
 _si_prefix_re = re.compile(
-    r'([ /*∙]?)' +                                      # divider
-    rf'([{"".join(_si_prefix.keys())}]?)' +             # prefix
-    r'([^\^/*⁰¹²³⁴⁵⁶⁷⁸⁹⁺⁻ ]*)' +                        # unit
-    r'(\^[\-]?[0-9]+(\.[0-9]+)?|[⁺⁻]?[⁰¹²³⁴⁵⁶⁷⁸⁹]+)?'   # power_str
+    r'([ /*∙]?)' +  # divider
+    rf'([{"".join(_si_prefix.keys())}]?)' +  # prefix
+    r'([^\^/*⁰¹²³⁴⁵⁶⁷⁸⁹⁺⁻ ]*)' +  # unit
+    r'(\^[\-]?[0-9]+(\.[0-9]+)?|[⁺⁻]?[⁰¹²³⁴⁵⁶⁷⁸⁹]+)?'  # power_str
 )
 
 _superscripts = "⁰¹²³⁴⁵⁶⁷⁸⁹⁺⁻"
@@ -109,9 +141,12 @@ class Unit:
             if unit_group in _special_units:
                 if power_str != '':
                     raise ValueError(f'Power for special unit {unit_group + power_str} is not supported')
-                func = _special_units[unit_group]
-                if func is not None:
-                    self.modifiers.append(func if divider == '/' else lambda x: 1 / func(x))
+                func_f, func_t = _special_units[unit_group]
+                if divider == '/':
+                    self.modifiers.append((lambda x, m: 1 / func_f(x, m), lambda x, m: func_t(1 / x, m)))
+                else:
+                    self.modifiers.append((func_f, func_t))
+                self.original.append((unit_group, None, -1 if divider == '/' else 1))
                 continue
             if unit == '':
                 unit = prefix
@@ -132,11 +167,12 @@ class Unit:
         :param value: some number in standard from
         :return: converted value
         """
-        if len(self.modifiers) > 0:
-            raise ValueError("Special units are not implemented to be converted")
+        value = value * 10 ** -self.scale
+        for mod_f, mod_t in self.modifiers:
+            value = mod_t(value, _get_math(value))
         if not hasattr(value, '__mul__') or not hasattr(value, '__pow__'):
             raise ValueError(f"Invalid value type '{value.__class__.__name__}'")
-        return value * 10 ** -self.scale
+        return value
 
     def __rmatmul__(self, left):
         """
@@ -187,11 +223,13 @@ class Unit:
                 for i, (unit, power) in enumerate(concated):
                     if unit in used:
                         continue
-                    power += sum([p for u, p in concated[i+1:] if unit == u])
+                    power += sum([p for u, p in concated[i + 1:] if unit == u])
                     if power != 0:
                         _original.append((unit, '', power))
                     used.add(unit)
             for unit, prefix, power in _original:
+                if prefix is None:  # if special unit
+                    prefix = ''
                 result.append(self._repr_unit(prefix + unit, power, superscript))
         else:
             for unit, power in self.units.items():
@@ -241,8 +279,8 @@ class Value(float):
                 units = _units or ''
         if not isinstance(units, Unit):
             units = Unit(units)
-        for mod in units.modifiers:
-            value = mod(value)
+        for mod_f, mod_t in units.modifiers:
+            value = mod_f(value, _get_math(value))  # modifier from special unit
         _value = value * 10 ** units.scale
         instance = super().__new__(cls, _value)
         instance.__units__ = units
