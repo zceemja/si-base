@@ -1,8 +1,11 @@
 # SI-Base python package
 
 A basic python package that converts numerical strings with units to base units.
+There are two main classes:
+* `Unit` which holds information about units, for instance that string `km/s` has unit **m** with *10 power of 3* and unit **s** with *10 power of -1* 
+* `Value` is a float which also holds Unit and some numerical value that is always in **SI Base**. 
 
-Examples:
+### Examples:
 
 ```python
 from sibase import Value, Unit
@@ -68,6 +71,7 @@ set_special_unit(
     lambda x, _math: _math.log(x),  # function to convert to SI base  
     lambda x, _math: _math.exp(x)   # inverse of above
 )
+# Note: _math will depend on instance of x, it could be python's math module or numpy or jax.numpy
 Value('10 log') # 2.30258509 
 Value('2.3') @ 'log' # ~10 
 Value('1π')  # 3.14159265 ( π treated as special unit )
