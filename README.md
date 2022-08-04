@@ -54,8 +54,23 @@ from sibase import Value
 Value('-21 ps^2/km')  #  -2.1e-26 s^2/m
 Value('17 ps/nm/km')  #  1.7e-05 s/m^2
 
-# decibels are treated as special unit for now, probably will be changed in future
-Value('0.2 dB/km')  # 2e-4 /m 
+# dB, dBm and Np (Nepers) are special units
+Value('20 dB/km')  # 0.1 /m 
+Value('2.3 km/Np')  # ~10.05 m 
+Value('-20 dB') @ 'dBm'  # 10.0
+Value('0.2 dB/km') @ 'Np/m'  # -3.43
+
+# More special units can be added
+from sibase import set_special_unit
+
+set_special_unit(
+    'log',  # name of unit 
+    lambda x, _math: _math.log(x),  # function to convert to SI base  
+    lambda x, _math: _math.exp(x)   # inverse of above
+)
+Value('10 log') # 2.30258509 
+Value('2.3') @ 'log' # ~10 
+Value('1π')  # 3.14159265 ( π treated as special unit )
 
 ```
 

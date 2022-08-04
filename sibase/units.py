@@ -42,8 +42,18 @@ _special_units = {
     'Np': (  # Nepers
         lambda x, _math: 10 ** (x / _math.log(10) * 2),
         lambda x, _math: _math.log10(x) * _math.log(10) / 2,
+    ),
+    'π': (
+        lambda x, _math: x * _math.pi,
+        lambda x, _math: x / _math.pi,
     )
 }
+
+
+def set_special_unit(unit, func, inv_func):
+    """ Adds special unit methods to dict """
+    _special_units[unit] = (func, inv_func)
+
 
 _math_modules = {
     'sibase.units': 'math',
@@ -51,6 +61,8 @@ _math_modules = {
     'numpy': 'numpy',
     'jaxlib.xla_extension': 'jax._src.numpy.ufuncs',
 }
+
+
 def _get_math(x):
     """
     Returns "math" module based on input argument class.
